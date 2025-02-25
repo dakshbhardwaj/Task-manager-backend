@@ -12,7 +12,8 @@ router.post("/signup", async (req, res) => {
 
     try {
         const user = await User.create({ name, email, password: hashedPassword });
-        res.status(201).json({ message: "User registered" });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+        res.status(201).json({ message: "User registered", token });
     } catch (error) {
         res.status(400).json({ error: "User already exists" });
     }
@@ -30,7 +31,6 @@ router.post("/login", async (req, res) => {
     }
 });
 
-// Request password reset
 router.post("/forgot-password", async (req, res) => {
     try {
         const user = await User.findOne({ email: req.body.email });
@@ -38,13 +38,11 @@ router.post("/forgot-password", async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // Generate 6-digit reset code
         const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetCode = resetCode;
-        user.resetCodeExpires = Date.now() + 3600000; // 1 hour
+        user.resetCodeExpires = Date.now() + 3600000; 
         await user.save();
 
-        // Send reset code via email
         await sendResetCode(user.email, resetCode);
         res.json({ message: "Reset code sent to email" });
     } catch (error) {
@@ -53,7 +51,6 @@ router.post("/forgot-password", async (req, res) => {
     }
 });
 
-// Verify reset code and set new password
 router.post("/reset-password", async (req, res) => {
     try {
         const { email, resetCode, newPassword } = req.body;
